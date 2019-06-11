@@ -1,0 +1,76 @@
+﻿
+@{
+    ViewBag.Title = "LoadPathFromFileAndDisplayIt";
+}
+
+<canvas id="myCanvas" style='position:absolute; left:0px; top:0px;'></canvas>
+<script src="~/Scripts/AdjustBackground.js"></script>
+<script src="~/Scripts/drawStartPossitionOfPlane.js"></script>
+<script src="~/Scripts/normilizingFunctions.js"></script>
+<script>
+@{
+    //In order to make sure that javaScript code reads information correctly and without errors
+    // we delete new line characters.
+    ViewBag.info = ViewBag.info.Replace("\r\n", "");
+}
+    (function () {
+        // Obtain a reference to the canvas element using its id.
+        var htmlCanvas = document.getElementById('myCanvas');
+        adjustBackground(htmlCanvas, mainFunc);
+
+        function mainFunc() {
+            var ctx = htmlCanvas.getContext("2d");
+            /*
+             * Getting flight information from view bag in json format
+             * and replacing quote xml sign "&quou" with regular ' " ' quoute sign,
+             * because JSON javascript class can parse json string only with ' " ' notation.
+             */          
+            var infoJsonStr = ("@ViewBag.info".toString()).replace(/&quot;/g, '"');
+              //all fields of this object are string and values stored as CSV notation.
+              // for each information unit(that is lot, lan, rudder an throttle), it stored as CSV in the next form:
+              // "valueInSampe1,valueInSample2,valueInSample3,...,valueInSample4" therefore, for example,
+             // if we want all information about a plane in a sample number 3,
+             // so we should get third value from each unit, which is a string.
+             // For example, if all units are:
+             // lot: 1,2,3,4,5,6
+             // lan: 2,3,4,5,6,7
+             // rudder: 3,4,5,6,7,8
+            // throttle: 4,5,6,7,8,9
+            // Then for third sample information is: 
+            // lot=3, lan = 4, rudder = 5, throttle = 6.
+            var flightInfoObj = JSON.parse(infoJsonStr);
+            xValues = flightInfoObj.xValuesInThisFlight.split(",");
+            yValues = flightInfoObj.yValuesInThisFlight.split(",");
+            // will be used as a couter of samples in flight information we have recieved.
+            var i = 0;
+            var previousX = normilizeX(parseFloat(xValues[0]), htmlCanvas);
+            var previousY = normilizeY(parseFloat(yValues[0]), htmlCanvas);
+            drawStartPossitionOfPlane(ctx, previousX, previousY);
+            var IntervalTime = (1 / @Session["numPerSeconds"]) * 1000
+            var idOfIntervaling;
+            
+
+            myTimer = function () {
+                    //if we showed all coordinates from all the samples, then the animation will be finished.
+                    if (i >= xValues.length) {
+                        alert("The animation has finished.")
+                        clearInterval(idOfIntervaling);
+                    }
+                    ctx.beginPath();
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = "red";
+                    ctx.moveTo(previousX, previousY);
+                    var x = normilizeX(parseFloat(xValues[i]), htmlCanvas);
+                    var y = normilizeY(parseFloat(yValues[i]), htmlCanvas);
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
+                    ctx.closePath();
+                    previousX = x;
+                    previousY = y;
+                    ++i;
+                };
+            idOfIntervaling = setInterval(myTimer, IntervalTime);
+            
+        };
+    })();
+</script>

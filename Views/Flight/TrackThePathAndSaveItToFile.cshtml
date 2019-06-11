@@ -1,0 +1,103 @@
+﻿
+@{
+    ViewBag.Title = "TrackThePathAndSaveItToFile";
+}
+
+
+
+<canvas id="myCanvas" style='position:absolute; left:0px; top:0px;'></canvas>
+<script src="~/Scripts/AdjustBackground.js"></script>
+<script src="~/Scripts/drawStartPossitionOfPlane.js"></script>
+<script src="~/Scripts/normilizingFunctions.js"></script>
+<script>
+    (function () {
+        // Obtain a reference to the canvas element using its id.
+        var htmlCanvas = document.getElementById('myCanvas');
+        adjustBackground(htmlCanvas, mainFunc);
+
+        function mainFunc() {
+
+            var ctx = htmlCanvas.getContext("2d");
+            var previousX = normilizeX(parseFloat(@Session["xOfPlane"]), htmlCanvas);
+            var previousY = normilizeY(parseFloat(@Session["yOfPlane"]), htmlCanvas);
+            //drawing a start point of a path in a beautiful and collored form.
+            drawStartPossitionOfPlane(ctx, previousX, previousY);
+            var IntervalTime = (1 / @Session["numPerSeconds"]) * 1000
+            var keyForController = "@Session["key"]";
+            var fileName = "@Session["fileName"]";
+
+            var input = {
+                key: keyForController,
+            }
+               //all fields of this object are string and values stored as CSV notation.
+              // for each information unit(that is lot, lan, rudder an throttle), it stored as CSV in the next form:
+              // "valueInSampe1,valueInSample2,valueInSample3,...,valueInSample4" therefore, for example,
+             // if we want all information about a plane in a sample number 3,
+             // so we should get third value from each unit, which is a string.
+             // For example, if all units are:
+             // lot: 1,2,3,4,5,6
+             // lan: 2,3,4,5,6,7
+             // rudder: 3,4,5,6,7,8
+            // throttle: 4,5,6,7,8,9
+            // Then for third sample information is: 
+            // lot=3, lan = 4, rudder = 5, throttle = 6.
+            var flightInfo = new Object();
+            xValues = @Session["xOfPlane"] + ",";
+            yValues = @Session["yOfPlane"] + ",";
+            throttleValues = @Session["throttle"] + ",";
+            rudderValues = @Session["rudder"] + ",";
+            var secondsToDraw = @Session["seconds"];
+            myTimer = function () {
+                newToday = new Date();
+                var first = newToday.getSeconds() + newToday.getMinutes() * 60 + newToday.getHours() * 60 * 60;
+                var dif = first - timer;
+                //If we has gathered information for a required number of seconds, we will stop to gather and send
+                //post request to the server to store this information.
+                if (dif >= secondsToDraw) {
+                    var flightInfo = new Object();
+                    flightInfo.xValuesInThisFlight = xValues;
+                    flightInfo.yValuesInThisFlight = yValues;
+                    flightInfo.throttleValuesInThisFlight = throttleValues;
+                    flightInfo.rudderValuesInThisFlight = rudderValues;
+                    var infoAsJson = JSON.stringify(flightInfo);
+                    var parameters = {
+                        key: keyForController,
+                        infoJson: infoAsJson,
+                        fileName: fileName,
+                    }
+                    $.post("/Flight/SaveFlightInfo", parameters);
+                    clearInterval(idOfIntervaling);
+                }
+                $.post("/Flight/GetInfoAboutPlainKey", input).done(function (info) {
+                    var splitedInfo = info.split(",");
+                    var x = normilizeX(parseFloat(splitedInfo[0]), htmlCanvas);
+                    var y = normilizeY(parseFloat(splitedInfo[1]), htmlCanvas);
+                    ctx.beginPath();
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = "red";
+                    ctx.moveTo(previousX, previousY);
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
+                    ctx.closePath();
+                    previousX = x;
+                    previousY = y;
+                    xValues = xValues + splitedInfo[0] + ",";
+                    yValues = yValues + splitedInfo[1] + ",";
+                    throttleValues = throttleValues + splitedInfo[2] + ",";
+                    rudderValues = rudderValues + splitedInfo[3] + ",";
+                });
+                };
+
+            //Interval sides in miliseconds(1 second == 1000 miliseconds)
+            var today = new Date()
+            timer = today.getSeconds() + today.getMinutes() * 60 + today.getHours() * 60 * 60;
+            idOfIntervaling = setInterval(myTimer, IntervalTime);
+            
+            
+
+
+        };
+    })();
+
+
+</script>

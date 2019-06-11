@@ -1,0 +1,56 @@
+﻿
+@{
+    ViewBag.Title = "DisplayPathContinuously";
+}
+
+<canvas id="myCanvas" style='position:absolute; left:0px; top:0px;'></canvas>
+<script src="~/Scripts/AdjustBackground.js"></script>
+<script src="~/Scripts/drawStartPossitionOfPlane.js"></script>
+<script src="~/Scripts/normilizingFunctions.js"></script>
+<script>
+    (function () {
+        // Obtain a reference to the canvas element using its id.
+        var htmlCanvas = document.getElementById('myCanvas');
+        adjustBackground(htmlCanvas, mainFunc);
+        function mainFunc() {
+
+            var ctx = htmlCanvas.getContext("2d");
+            var xOfPlane = normilizeX(parseFloat(@Session["xOfPlane"]), htmlCanvas);
+            var yOfPlane = normilizeY(parseFloat(@Session["yOfPlane"]), htmlCanvas);
+            drawStartPossitionOfPlane(ctx, xOfPlane, yOfPlane);
+            var IntervalTime = (1 / @Session["numPerSeconds"]) * 1000
+            var previousX = xOfPlane;
+            var previousY = yOfPlane;
+            var keyForController = "@Session["key"]";
+            var input = {
+                key: keyForController,
+            };
+            myTimer = function () {
+                console.log(input);
+                $.post("/Flight/UpdateXandYofPlane", input).done(function (xy) {
+                    var xAndY = xy.split(",");
+                    var x = normilizeX(parseFloat(xAndY[0]), htmlCanvas);
+                    var y = normilizeY(parseFloat(xAndY[1]), htmlCanvas);
+                    ctx.beginPath();
+                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = "red";
+                    ctx.moveTo(previousX, previousY);
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
+                    ctx.closePath();
+                    previousX = x;
+                    previousY = y;
+                });
+                };
+
+                //Interval sides in miliseconds(1 second == 1000 miliseconds)
+                setInterval(myTimer, IntervalTime)
+
+
+
+        };
+    })();
+
+
+</script>
+
